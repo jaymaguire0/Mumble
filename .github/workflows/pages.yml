@@ -2,21 +2,13 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches:
+      - main
 
 permissions:
   contents: read
   pages: write
   id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
-
-env:
-  # Change this if your build outputs somewhere else (e.g. build, out, docs)
-  BUILD_DIR: dist
 
 jobs:
   build:
@@ -25,54 +17,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 18
 
-      - name: Install dependencies (npm / yarn / pnpm or skip)
+      # Install dependencies (fall back to npm install if no lockfile exists)
+      - name: Install dependencies
         run: |
-          set -euxo pipefail
-          if [ -f pnpm-lock.yaml ]; then
-            corepack enable
-            pnpm install --frozen-lockfile
-          elif [ -f yarn.lock ]; then
-            corepack enable
-            yarn install --frozen-lockfile
-          elif [ -f package-lock.json ]; then
+          if [ -f package-lock.json ]; then
             npm ci
-          elif [ -f package.json ]; then
-            npm install --no-audit --no-fund
           else
-            echo "No package manager files found; skipping install."
+            npm install
           fi
 
-      - name: Build site (or treat as static)
-        run: |
-          set -euxo pipefail
-          if [ -f package.json ] && grep -q "\"build\":" package.json; then
-            # Try the usual suspects; the first that exists will run
-            (npm run build) || (yarn build) || (pnpm build)
-          else
-            echo "No build script found; assuming static site."
-            mkdir -p "$BUILD_DIR"
-            shopt -s dotglob
-            cp -r * "$BUILD_DIR"/
-            shopt -u dotglob
-          fi
+      - name: Build
+        run: npm run build
+
+      # Create 404.html for SPA routing
+      - name: Add SPA fallback
+        run: cp dist/index.html dist/404.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ env.BUILD_DIR }}
+          path: dist
 
   deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
