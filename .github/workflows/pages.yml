@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -17,27 +17,61 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Build-time env
+      VITE_BASE_PATH: /${{ github.event.repository.name }}/
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_DEFAULT_TZ: ${{ secrets.VITE_DEFAULT_TZ }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_DEFAULT_TZ: ${{ secrets.VITE_DEFAULT_TZ }}
-      - uses: actions/upload-pages-artifact@v3
+
+      - name: Detect Node project
+        id: detect
+        run: |
+          if [ -f package.json ]; then
+            echo "node_project=true" >> $GITHUB_OUTPUT
+          else
+            echo "node_project=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install deps (if Node project)
+        if: steps.detect.outputs.node_project == 'true'
+        run: npm ci
+
+      - name: Build (if Node project)
+        if: steps.detect.outputs.node_project == 'true'
+        run: npm run build
+
+      - name: Ensure dist exists
+        run: |
+          if [ ! -d dist ]; then
+            echo "dist/ not found. Creating minimal index.html so Pages can deploy."
+            mkdir -p dist
+            echo '<!doctype html><meta charset="utf-8"><title>Placeholder</title><h1>Build missing</h1>' > dist/index.html
+          fi
+
+      - name: SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
   deploy:
-    needs: build
-    runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
     steps:
-      - uses: actions/deploy-pages@v4
-        id: deploy
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
