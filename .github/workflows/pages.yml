@@ -18,7 +18,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Build-time env
       VITE_BASE_PATH: /${{ github.event.repository.name }}/
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -26,11 +25,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
       - name: Detect Node project
         id: detect
@@ -41,20 +35,30 @@ jobs:
             echo "node_project=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Install deps (if Node project)
+      - name: Setup Node
+        if: steps.detect.outputs.node_project == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install deps
         if: steps.detect.outputs.node_project == 'true'
         run: npm ci
 
-      - name: Build (if Node project)
+      - name: Build
         if: steps.detect.outputs.node_project == 'true'
         run: npm run build
 
-      - name: Ensure dist exists
+      - name: Ensure dist exists (placeholder if no build)
         run: |
           if [ ! -d dist ]; then
-            echo "dist/ not found. Creating minimal index.html so Pages can deploy."
             mkdir -p dist
-            echo '<!doctype html><meta charset="utf-8"><title>Placeholder</title><h1>Build missing</h1>' > dist/index.html
+            cat > dist/index.html <<'HTML'
+<!doctype html><meta charset="utf-8">
+<title>Numble Duo — placeholder</title>
+<h1>Numble Duo</h1>
+<p>Build placeholder. If you can see this, GitHub Pages is live.</p>
+HTML
           fi
 
       - name: SPA fallback
