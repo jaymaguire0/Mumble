@@ -43,7 +43,13 @@ jobs:
 
       - name: Install deps
         if: steps.detect.outputs.node_project == 'true'
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo "No package-lock.json found; using npm install"
+            npm install --no-audit --no-fund
+          fi
 
       - name: Build
         if: steps.detect.outputs.node_project == 'true'
