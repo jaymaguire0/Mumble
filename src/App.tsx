@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { supabase } from './lib/supabase';
 import Home from './pages/Home';
 import Play from './pages/Play';
 import Leaderboard from './pages/Leaderboard';
