@@ -2,7 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main  # or your default branch name
   workflow_dispatch:
 
 permissions:
@@ -17,58 +18,25 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      VITE_BASE_PATH: /${{ github.event.repository.name }}/
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      VITE_DEFAULT_TZ: ${{ secrets.VITE_DEFAULT_TZ }}
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Detect Node project
-        id: detect
-        run: |
-          if [ -f package.json ]; then
-            echo "node_project=true" >> $GITHUB_OUTPUT
-          else
-            echo "node_project=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Setup Node
-        if: steps.detect.outputs.node_project == 'true'
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
-      - name: Install deps
-        if: steps.detect.outputs.node_project == 'true'
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            echo "No package-lock.json found; using npm install"
-            npm install --no-audit --no-fund
-          fi
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Build
-        if: steps.detect.outputs.node_project == 'true'
+      - name: Build site
         run: npm run build
-
-      - name: Ensure dist exists (placeholder if no build)
-        run: |
-          if [ ! -d dist ]; then
-            mkdir -p dist
-            echo '<!doctype html><meta charset="utf-8"><title>Numble Duo</title><h1>Build placeholder</h1>' > dist/index.html
-          fi
-
-      - name: SPA fallback
-        run: cp dist/index.html dist/404.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: ./dist # adjust if your build output folder is different
 
   deploy:
     environment:
