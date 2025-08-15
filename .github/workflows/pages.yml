@@ -53,12 +53,7 @@ jobs:
         run: |
           if [ ! -d dist ]; then
             mkdir -p dist
-            cat > dist/index.html <<'HTML'
-<!doctype html><meta charset="utf-8">
-<title>Numble Duo — placeholder</title>
-<h1>Numble Duo</h1>
-<p>Build placeholder. If you can see this, GitHub Pages is live.</p>
-HTML
+            echo '<!doctype html><meta charset="utf-8"><title>Numble Duo</title><h1>Build placeholder</h1>' > dist/index.html
           fi
 
       - name: SPA fallback
